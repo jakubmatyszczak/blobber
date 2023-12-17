@@ -1,10 +1,8 @@
-#include <cstring>
 #include <dirent.h>
-#include <fstream>
 #include <iostream>
 
 #include "common.hpp"
-
+using namespace blob;
 struct file
 {
 	bool ok;
@@ -53,19 +51,20 @@ file openFile(std::string filepath)
 	f.ok = true;
 	return f;
 }
-bool appendBin(std::ofstream& of, const file& f)
+long appendBin(std::ofstream& of, const file& f, long offset)
 {
 	if (!of.is_open())
 		return false;
-	header h = {};
+	BlobEntryHeader h = {};
 	strcpy(h.name, f.filename.c_str());
 	strcpy(h.extension, f.extenxion.c_str());
-	h.size = f.size;
+	h.datasize = f.size;
+	h.offset = offset;
 	of.write((const char*)&h, sizeof(h));
 	of.write((const char*)f.data, f.size);
-	return false;
+	return sizeof(h) + f.size;
 }
-bool writeBlobHeader(std::ofstream& of, const blobHeader& bh)
+long writeBlobHeader(std::ofstream& of, const BlobHeader& bh)
 {
 	of.write((char*)&bh.nElements, sizeof(bh.nElements));
 	for (int i = 0; i < bh.nElements; i++)
@@ -74,7 +73,7 @@ bool writeBlobHeader(std::ofstream& of, const blobHeader& bh)
 		strcpy(entry, bh.elements[i].c_str());
 		of.write(entry, headerFilenameSize);
 	}
-	return true;
+	return sizeof(bh.nElements) + bh.nElements * headerFilenameSize;
 }
 std::string assemblePath(std::vector<std::string>& path)
 {
@@ -118,14 +117,12 @@ int main(int argc, const char* argv[])
 
 	scanFolder(dirname, filepaths, path);
 	for (int i = 0; i < filepaths.size(); i++)
-	{
 		std::cout << filepaths[i] << std::endl;
-	}
 
-	blobHeader bh;
+	BlobHeader bh;
 	bh.nElements = filepaths.size();
 	bh.elements = filepaths;
-	long totalsize = sizeof(bh.nElements) + bh.nElements * headerFilenameSize;
+	long bytesWritten = sizeof(bh.nElements) + bh.nElements * headerFilenameSize;
 
 	std::ofstream ofile;
 	ofile.open("blob.blob");
@@ -133,12 +130,11 @@ int main(int argc, const char* argv[])
 	for (int i = 0; i < bh.nElements; i++)
 	{
 		file f = openFile(filepaths[i]);
-		appendBin(ofile, f);
+		bytesWritten += appendBin(ofile, f, bytesWritten);
 		free(f.data);
-		totalsize += f.size;
 	}
 	ofile.close();
-	std::cout << "Total files: " << filepaths.size() << ", total size: " << totalsize << " ("
-			  << totalsize / 1024 << " kB)." << std::endl;
+	std::cout << "Total files: " << filepaths.size() << ", total size: " << bytesWritten << " ("
+			  << bytesWritten / 1024 << " kB)." << std::endl;
 	return 0;
 }
