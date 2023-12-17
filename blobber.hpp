@@ -39,6 +39,7 @@ namespace blob
 		long marker = 0;
 		BlobHeader bh;
 		std::vector<BlobEntryHeader> headers;
+		~BlobReader() { unload(); }
 		bool read(const std::string& filepath)
 		{
 			std::ifstream ifile;
@@ -67,5 +68,18 @@ namespace blob
 			}
 			return true;
 		}
+		void unload()
+		{
+			if (data != nullptr)
+				free(data);
+		}
+        void* getAsset(const std::string& assetName)
+        {
+            for(BlobEntryHeader& h : headers)
+                if(strcmp(h.name, assetName.c_str()) == 0)
+                    return (void*)(&data[h.offset]);
+            return nullptr;
+        }
+
 	};
 } // namespace blob

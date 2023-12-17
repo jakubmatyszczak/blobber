@@ -1,7 +1,7 @@
 #include <dirent.h>
 #include <iostream>
 
-#include "common.hpp"
+#include "blobber.hpp"
 using namespace blob;
 struct file
 {
@@ -125,7 +125,7 @@ int main(int argc, const char* argv[])
 	long bytesWritten = sizeof(bh.nElements) + bh.nElements * headerFilenameSize;
 
 	std::ofstream ofile;
-	ofile.open("blob.blob");
+	ofile.open(std::string(dirname) + ".blob");
 	writeBlobHeader(ofile, bh);
 	for (int i = 0; i < bh.nElements; i++)
 	{
