@@ -1,4 +1,5 @@
 #include <cstring>
+#include <dirent.h>
 #include <fstream>
 #include <iostream>
 
@@ -75,23 +76,69 @@ bool writeBlobHeader(std::ofstream& of, const blobHeader& bh)
 	}
 	return true;
 }
-int main()
+std::string assemblePath(std::vector<std::string>& path)
 {
+	std::string pathString;
+	for (std::string& s : path)
+		pathString += s + std::string("/");
+	return pathString;
+}
+
+void scanFolder(const char* dirname, std::vector<std::string>& filepaths, std::vector<std::string>& path)
+{
+	DIR* d;
+	struct dirent* dir;
+	d = opendir(std::string(assemblePath(path) + std::string(dirname)).c_str());
+	if (d)
+	{
+		path.emplace_back(dirname);
+		while ((dir = readdir(d)) != NULL)
+		{
+			if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+				continue;
+			if (dir->d_type == DT_REG)
+			{
+				filepaths.emplace_back(assemblePath(path) + std::string(dir->d_name));
+				continue;
+			}
+			if (dir->d_type == DT_DIR)
+				scanFolder(dir->d_name, filepaths, path);
+		}
+		closedir(d);
+		path.pop_back();
+	}
+}
+int main(int argc, const char* argv[])
+{
+	if (argc < 2)
+		return 1;
+	const char* dirname = argv[1];
+	std::vector<std::string> filepaths;
+	std::vector<std::string> path;
+
+	scanFolder(dirname, filepaths, path);
+	for (int i = 0; i < filepaths.size(); i++)
+	{
+		std::cout << filepaths[i] << std::endl;
+	}
+
 	blobHeader bh;
-	bh.nElements = 10;
-	for (int i = 0; i < 10; i++)
-		bh.elements.emplace_back("asdf.txt");
+	bh.nElements = filepaths.size();
+	bh.elements = filepaths;
+	long totalsize = sizeof(bh.nElements) + bh.nElements * headerFilenameSize;
 
 	std::ofstream ofile;
-	ofile.open("blob.bin");
+	ofile.open("blob.blob");
 	writeBlobHeader(ofile, bh);
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < bh.nElements; i++)
 	{
-		file f = openFile("1.txt");
+		file f = openFile(filepaths[i]);
 		appendBin(ofile, f);
 		free(f.data);
+		totalsize += f.size;
 	}
 	ofile.close();
-
+	std::cout << "Total files: " << filepaths.size() << ", total size: " << totalsize << " ("
+			  << totalsize / 1024 << " kB)." << std::endl;
 	return 0;
 }
