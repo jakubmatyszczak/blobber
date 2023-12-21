@@ -2,7 +2,9 @@
 #include <iostream>
 
 #include "blobber.hpp"
+
 using namespace blob;
+
 struct file
 {
 	bool ok;
@@ -10,22 +12,6 @@ struct file
 	long size;
 	void* data;
 };
-void strip_ext(char* fname)
-{
-	char* end = fname + strlen(fname);
-	while (end > fname && *end != '.')
-		--end;
-	if (end > fname)
-		*end = '\0';
-}
-const char* get_filename_ext(const char* filename)
-{
-	const char* dot = strrchr(filename, '.');
-	if (!dot || dot == filename)
-		return "";
-	return dot + 1;
-}
-
 file openFile(std::string filepath)
 {
 	std::ifstream ifile;
@@ -45,20 +31,6 @@ file openFile(std::string filepath)
 	f.ok = true;
 	return f;
 }
-long writeBlobHeader(std::ofstream& of, const BlobHeader& bh)
-{
-    long bytes = 0;
-	of.write((char*)&bh.nElements, sizeof(bh.nElements));
-    bytes += sizeof(bh.nElements);
-	for (int i = 0; i < bh.nElements; i++)
-	{
-		// char entry[headerFilenameSize] = {};
-		// strcpy(entry, bh.elements[i].c_str());
-		// of.write(entry, headerFilenameSize);
-  //       bytes += sizeof(headerFilenameSize);
-	}
-	return bytes;
-}
 std::string assemblePath(std::vector<std::string>& path)
 {
 	std::string pathString;
@@ -66,7 +38,6 @@ std::string assemblePath(std::vector<std::string>& path)
 		pathString += s + std::string("/");
 	return pathString;
 }
-
 void scanFolder(const char* dirname, std::vector<std::string>& filepaths, std::vector<std::string>& path)
 {
 	DIR* d;
