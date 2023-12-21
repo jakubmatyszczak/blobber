@@ -5,21 +5,14 @@ using namespace blob;
 
 int main(int argc, const char* argv[])
 {
+	BlobReader b;
 	if (argc < 2)
 		return 1;
-    BlobReader b;
-    b.read(argv[1]);
-    std::cout << b.bh.nElements << std::endl;
-    for(std::string& s : b.bh.elements)
-        std::cout << "- " << s << std::endl;
-    std::cout << "###########" << std::endl;
-    for(BlobEntryHeader& h : b.headers)
-    {
-        std::cout << h.name << std::endl; 
-        std::cout << h.extension << std::endl; 
-        std::cout << h.datasize << std::endl; 
-        std::cout << h.offset << std::endl; 
-        std::cout << "---" << std::endl; 
-    }
-    return 0;
+	b.readFile(argv[1]);
+	std::cout << "Blob file: " << argv[1] << std::endl;
+	std::cout << "Max Path length: " << b.bh.pathLen << std::endl;
+	std::cout << "Found " << b.bh.nElements << " headers." << std::endl;
+	for (BlobEntryHeader& h : b.headers)
+		std::cout << h.path << " - " << h.datasize << " - " << h.offset << std::endl;
+	return 0;
 }

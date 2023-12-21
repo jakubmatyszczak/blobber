@@ -6,8 +6,7 @@ using namespace blob;
 struct file
 {
 	bool ok;
-	std::string filename;
-	std::string extenxion;
+    char filepath[pathLen];
 	long size;
 	void* data;
 };
@@ -36,13 +35,8 @@ file openFile(std::string filepath)
 		std::cerr << "Failed to open file!" << std::endl;
 		return {};
 	}
-	char filename[headerFilenameSize] = {};
-	strcpy(filename, basename(filepath.c_str()));
-	strip_ext(filename);
-
 	file f;
-	f.extenxion = std::string(get_filename_ext(filepath.c_str()));
-	f.filename = std::string(filename);
+    strcpy(f.filepath, filepath.c_str());
 	f.size = ifile.tellg();
 	f.data = calloc(f.size, 1);
 	ifile.seekg(0);
@@ -51,29 +45,19 @@ file openFile(std::string filepath)
 	f.ok = true;
 	return f;
 }
-long appendBin(std::ofstream& of, const file& f, long offset)
-{
-	if (!of.is_open())
-		return false;
-	BlobEntryHeader h = {};
-	strcpy(h.name, f.filename.c_str());
-	strcpy(h.extension, f.extenxion.c_str());
-	h.datasize = f.size;
-	h.offset = offset;
-	of.write((const char*)&h, sizeof(h));
-	of.write((const char*)f.data, f.size);
-	return sizeof(h) + f.size;
-}
 long writeBlobHeader(std::ofstream& of, const BlobHeader& bh)
 {
+    long bytes = 0;
 	of.write((char*)&bh.nElements, sizeof(bh.nElements));
+    bytes += sizeof(bh.nElements);
 	for (int i = 0; i < bh.nElements; i++)
 	{
-		char entry[headerFilenameSize] = {};
-		strcpy(entry, bh.elements[i].c_str());
-		of.write(entry, headerFilenameSize);
+		// char entry[headerFilenameSize] = {};
+		// strcpy(entry, bh.elements[i].c_str());
+		// of.write(entry, headerFilenameSize);
+  //       bytes += sizeof(headerFilenameSize);
 	}
-	return sizeof(bh.nElements) + bh.nElements * headerFilenameSize;
+	return bytes;
 }
 std::string assemblePath(std::vector<std::string>& path)
 {
@@ -119,20 +103,31 @@ int main(int argc, const char* argv[])
 	for (int i = 0; i < filepaths.size(); i++)
 		std::cout << filepaths[i] << std::endl;
 
+
 	BlobHeader bh;
+    bh.pathLen = pathLen;
 	bh.nElements = filepaths.size();
-	bh.elements = filepaths;
-	long bytesWritten = sizeof(bh.nElements) + bh.nElements * headerFilenameSize;
+    BlobEntryHeader* headers = (BlobEntryHeader*)calloc(bh.nElements, sizeof(BlobEntryHeader));
+    long headerSize = sizeof(BlobEntryHeader) * bh.nElements;
 
 	std::ofstream ofile;
 	ofile.open(std::string(dirname) + ".blob");
-	writeBlobHeader(ofile, bh);
+    ofile.write((const char*)&bh, sizeof(bh));
+    ofile.write((const char*) headers, headerSize);
+    long bytesWritten = sizeof(bh) + headerSize;
 	for (int i = 0; i < bh.nElements; i++)
 	{
 		file f = openFile(filepaths[i]);
-		bytesWritten += appendBin(ofile, f, bytesWritten);
+        strcpy(headers[i].path, filepaths[i].c_str()); 
+        headers[i].datasize = f.size;
+        headers[i].offset = bytesWritten;
+        ofile.write((const char*)f.data, f.size);
+        bytesWritten += f.size;
 		free(f.data);
 	}
+    ofile.seekp(0);
+    ofile.write((const char*)&bh, sizeof(bh));
+    ofile.write((const char*)headers, headerSize);
 	ofile.close();
 	std::cout << "Total files: " << filepaths.size() << ", total size: " << bytesWritten << " ("
 			  << bytesWritten / 1024 << " kB)." << std::endl;
